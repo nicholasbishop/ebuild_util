@@ -15,3 +15,4 @@
 """Simple ebuild file utilities."""
 
 from ebuild_util.ebuild import Ebuild
+from ebuild_util.ebuild import Version

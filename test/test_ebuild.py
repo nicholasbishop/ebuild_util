@@ -18,7 +18,8 @@ import unittest
 
 import mock
 
-from ebuild_util.ebuild import Ebuild, Version, remove_suffix
+from ebuild_util import Ebuild, Version
+from ebuild_util.ebuild import remove_suffix
 from numeric_version import NumericVersion
 
 
