@@ -54,20 +54,26 @@ class Version(object):
             suffix = '-r' + str(self.revision)
         return str(self.primary) + suffix
 
+    @staticmethod
+    def parse_revision(string):
+        """Parse a revision |string| such as "r300"."""
+        if not string.startswith('r'):
+            raise ValueError('invalid revision: ' + string)
+        string = string[1:]
+        return int(string)
+
     @classmethod
-    def parse(cls, string):
-        """Parse an ebuild |Version| from a string.
+    def parse_parts(cls, parts):
+        """Parse an ebuild |Version| from a list of strings.
 
-        The string must start with a dotted version and can optionally
-        end with a revision. Examples:
+        Examples:
 
-            9999
-            1.2.3
-            4.9-r2
+            ('9999',) -> Version(NumericVersion(9999))
+            ('1.2.3',) -> Version(NumericVersion(1.2.3))
+            ('4.9', 'r2') -> Version(NumericVersion(4.9, 2))
         """
-        parts = string.split('-')
         if len(parts) not in (1, 2):
-            raise ValueError('invalid ebuild version format: ' + string)
+            raise ValueError('invalid ebuild version format: ' + parts)
 
         primary = NumericVersion.parse(parts[0])
 
@@ -75,23 +81,8 @@ class Version(object):
         rev = 0
         if len(parts) == 2:
             rev = cls.parse_revision(parts[1])
-            if rev is None:
-                raise ValueError('invalid ebuild rev format: ' + string)
+
         return cls(primary, rev)
-
-    @staticmethod
-    def parse_revision(string):
-        """Parse a revision |string| such as "r300".
-
-        Returns None if the input is not a revision string.
-        """
-        if not string.startswith('r'):
-            return None
-        string = string[1:]
-        try:
-            return int(string)
-        except ValueError:
-            return None
 
 
 @attr.s(slots=True)
@@ -112,27 +103,45 @@ class Ebuild(object):
         parent_path, catname = os.path.split(catdir)
         if parent_path == '':
             parent_path = None
-        if catdir == '':
-            catdir = None
+        if catname == '':
+            catname = None
+
+        ebuild = cls.from_filename(filename)
+
+        if pkgname != '' and pkgname != ebuild.package:
+            raise ValueError('invalid ebuild path: ' + path)
+
+        ebuild.parent_path = parent_path
+        ebuild.category = catname
+
+        return ebuild
+
+
+    @classmethod
+    def from_filename(cls, filename):
+        """Create an Ebuild object by parsing an ebuild |filename|."""
 
         # Strip the suffix
         no_suffix = remove_suffix(filename, cls.EXTENSION)
 
-        # Check for revision
-        parts = no_suffix.rsplit('-', maxsplits=1)
-            
+        maxsplits = 2
+        parts = no_suffix.rsplit('-', maxsplits)
+        pkgname = parts[0]
+        version = None
 
-        # Strip the package name and extension to get the version
-        middle = remove_prefix_and_suffix(filename,
-                                          prefix='{}-'.format(pkgname),
-                                          suffix=Ebuild.EXTENSION)
+        # Try to parse a version with a revision number
+        if len(parts) == 3:
+            try:
+                version = Version.parse_parts(parts[1:])
+            except ValueError:
+                pkgname = '-'.join(parts[:2])
 
-        # TODO: validate packagename
+        # Version doesn't have a revision number, parse it from just
+        # the last part
+        if version is None:
+            version = Version.parse_parts(parts[-1:])
 
-        return cls(parent_path=parent_path,
-                   category=catname,
-                   package=pkgname,
-                   version=Version.parse(middle))
+        return cls(pkgname, version)
 
     @property
     def path(self):
@@ -175,9 +184,15 @@ class Ebuild(object):
             raise RuntimeError('unexpected keyword count in ebuild', count)
         return content.replace(keywords_unstable, keywords_stable)
 
+    @property
+    def revision(self):
+        """Get the ebuild's revision, or zero if is doesn't have one."""
+        return self.version.revision
+
     def is_9999(self):
         """Whether the ebuild is a 9999 ebuild."""
-        return self.version == NumericVersion(9999)
+        version = NumericVersion(9999)
+        return self.version.primary == version and self.revision == 0
 
     def is_symlink(self):
         """Whether the ebuild is a symlink."""
@@ -185,6 +200,10 @@ class Ebuild(object):
 
     def uprev(self):
         """Bump the revision of the ebuild."""
+        # As of pylint 1.7.2 the revision field is incorrectly flagged
+        # as not being a valid slot
+        #
+        # pylint: disable=assigning-non-slot
         self.version.revision += 1
 
     @staticmethod

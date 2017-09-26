@@ -23,7 +23,6 @@ from numeric_version import NumericVersion
 
 
 class TestRemoveSuffix(unittest.TestCase):
-    # Note that these test values match the |remove_suffix| docstring."""
     def test_only_once(self):
         self.assertEqual(remove_suffix('azaz', 'az'), 'az')
 
@@ -36,22 +35,24 @@ class TestVersion(unittest.TestCase):
         self.assertEqual(str(Version(NumericVersion(1, 2), 3)), '1.2-r3')
         self.assertEqual(str(Version(NumericVersion(1, 2))), '1.2')
 
-    def test_parse(self):
-        # Note that these values match the examples in the
-        # |Version.parse| docstring.
-        self.assertEqual(Version.parse('9999'),
+    def test_parse_parts(self):
+        self.assertEqual(Version.parse_parts(('9999',)),
                          Version(NumericVersion(9999)))
-        self.assertEqual(Version.parse('1.2.3'),
+        self.assertEqual(Version.parse_parts(('1.2.3',)),
                          Version(NumericVersion(1, 2, 3)))
-        self.assertEqual(Version.parse('4.9-r2'),
+        self.assertEqual(Version.parse_parts(('4.9', 'r2')),
                          Version(NumericVersion(4, 9), 2))
         with self.assertRaises(ValueError):
-            Version.parse('4.9-2')
+            Version.parse_parts('4.9-2')
+        with self.assertRaises(ValueError):
+            Version.parse_parts(('4.9', '2'))
 
     def test_parse_revision(self):
         self.assertEqual(Version.parse_revision('r123'), 123)
-        self.assertIs(Version.parse_revision('123'), None)
-        self.assertIs(Version.parse_revision('r1a'), None)
+        with self.assertRaises(ValueError):
+            Version.parse_revision('123')
+        with self.assertRaises(ValueError):
+            Version.parse_revision('r1a')
 
 
 class TestEbuild(unittest.TestCase):
@@ -70,17 +71,24 @@ class TestEbuild(unittest.TestCase):
         self.assertEqual(ebuild, Ebuild(
             package='mypkg',
             version=Version(NumericVersion(1, 2), 3),
-            category='mycat',
-            parent_path=None))
+            category='mycat'))
 
     def test_from_filename(self):
         path = 'mypkg-1.2-r3.ebuild'
         ebuild = Ebuild.from_path(path)
         self.assertEqual(ebuild, Ebuild(
             package='mypkg',
-            version=Version(NumericVersion(1, 2), 3),
-            category=None,
-            parent_path=None))
+            version=Version(NumericVersion(1, 2), 3)))
+
+    def test_many_dash(self):
+        self.assertEqual(Ebuild.from_path('my-very-own-pkg-1.2-r3.ebuild'),
+                         Ebuild(package='my-very-own-pkg',
+                                version=Version(NumericVersion(1, 2), 3)))
+
+    def test_many_dash_no_rev(self):
+        self.assertEqual(Ebuild.from_path('my-very-own-pkg-1.2.ebuild'),
+                         Ebuild(package='my-very-own-pkg',
+                                version=Version(NumericVersion(1, 2))))
 
     def test_uprev(self):
         ebuild = Ebuild('mypkg', Version(NumericVersion(1, 2)))
@@ -100,11 +108,11 @@ class TestEbuild(unittest.TestCase):
     @mock.patch('glob.glob', autospec=True)
     def test_find_in_dir(self, mock_glob):
         mock_glob.return_value = ('pkg-1.ebuild', 'pkg-9999.ebuild')
-        ebuilds = Ebuild.find_in_directory('some/path')
-        ebuild_versions = [ebuild.version for ebuild in ebuilds]
-        self.assertEqual(ebuild_versions,
-                         [NumericVersion(1), NumericVersion(9999)])
 
-        ebuilds = Ebuild.find_in_directory('some/path', exclude_9999=True)
-        ebuild_versions = [ebuild.version for ebuild in ebuilds]
-        self.assertEqual(ebuild_versions, [NumericVersion(1)])
+        self.assertEqual(list(Ebuild.find_in_directory('some/path')),
+                         [Ebuild('pkg', Version(NumericVersion(1))),
+                          Ebuild('pkg', Version(NumericVersion(9999)))])
+
+        self.assertEqual(list(Ebuild.find_in_directory('some/path',
+                                                       exclude_9999=True)),
+                         [Ebuild('pkg', Version(NumericVersion(1)))])
