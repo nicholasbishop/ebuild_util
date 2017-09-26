@@ -1,4 +1,6 @@
 attrs~=17.2.0
+numeric-version~=1.0.3
 
 # dev
+mock~=2.0.0
 pylint~=1.7.2
