@@ -30,7 +30,7 @@ def read_readme():
 
 setup(
     name='ebuild_util',
-    version='1.0.1',
+    version='1.0.2',
     description='Utilities for ebuild files',
     long_description=read_readme(),
     url='https://github.com/nicholasbishop/ebuild_util',

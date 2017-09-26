@@ -211,17 +211,17 @@ class Ebuild(object):
         # pylint: disable=assigning-non-slot
         self.version.revision += 1
 
-    @staticmethod
-    def find_in_directory(root, exclude_9999=False):
+    @classmethod
+    def find_in_directory(cls, root, exclude_9999=False):
         """Get all the Ebuilds in the given directory.
 
         If |exclude_9999| is True then any ebuild with an exact
         version of 9999 will be excluded from the results. By default
         9999 ebuilds are included in the results.
         """
-        paths = glob.glob(os.path.join(root, '*{}'.format(Ebuild.EXTENSION)))
+        paths = glob.glob(os.path.join(root, '*{}'.format(cls.EXTENSION)))
         for path in paths:
-            ebuild = Ebuild.from_path(path)
+            ebuild = cls.from_path(path)
             if exclude_9999 and ebuild.is_9999():
                 continue
             yield ebuild
