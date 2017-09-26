@@ -151,16 +151,18 @@ class Ebuild(object):
     @property
     def path(self):
         """Get full ebuild path."""
-        rest = os.path.join(self.category, self.package, self.filename)
-        if self.parent_path:
-            return os.path.join(self.parent_path, rest)
-        return rest
+        parts = [self.package, self.filename]
+        if self.category:
+            parts.insert(0, self.category)
+            if self.parent_path:
+                parts.insert(0, self.parent_path)
+        return os.path.join(*parts)
 
     @property
     def filename(self):
         """Get just the ebuild filename."""
-        return '{}-{}.{}'.format(self.package, str(self.version),
-                                 self.EXTENSION)
+        return '{}-{}{}'.format(self.package, str(self.version),
+                                self.EXTENSION)
 
     def copy(self):
         """Return a copy of the Ebuild object."""

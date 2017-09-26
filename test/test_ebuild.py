@@ -121,3 +121,19 @@ class TestEbuild(unittest.TestCase):
         self.assertEqual(list(Ebuild.find_in_directory('some/path',
                                                        exclude_9999=True)),
                          [Ebuild('pkg', Version(NumericVersion(1)))])
+
+    def test_path_full(self):
+        ebuild = Ebuild.from_path('mydir/mycat/mypkg/mypkg-1.ebuild')
+        self.assertEqual(ebuild.path, 'mydir/mycat/mypkg/mypkg-1.ebuild')
+
+    def test_path_no_parent(self):
+        ebuild = Ebuild.from_path('mycat/mypkg/mypkg-1.ebuild')
+        self.assertEqual(ebuild.path, 'mycat/mypkg/mypkg-1.ebuild')
+
+    def test_path_no_category(self):
+        ebuild = Ebuild.from_path('mypkg/mypkg-1.ebuild')
+        self.assertEqual(ebuild.path, 'mypkg/mypkg-1.ebuild')
+
+    def test_path_just_filename(self):
+        ebuild = Ebuild.from_path('mypkg-1.ebuild')
+        self.assertEqual(ebuild.path, 'mypkg/mypkg-1.ebuild')
