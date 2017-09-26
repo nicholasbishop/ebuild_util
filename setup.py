@@ -38,5 +38,5 @@ setup(
     author_email='nicholasbishop@gmail.com',
     license='Apache 2.0',
     packages=['ebuild_util'],
-    install_requires=['attrs>=17.0.0'],
+    install_requires=['attrs>=17.0.0', 'numeric-version>=1.0.3'],
 )
