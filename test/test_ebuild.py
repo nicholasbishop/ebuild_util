@@ -55,6 +55,10 @@ class TestVersion(unittest.TestCase):
         with self.assertRaises(ValueError):
             Version.parse_revision('r1a')
 
+    def test_parse(self):
+        self.assertEqual(Version.parse('4.9-r2'),
+                         Version(NumericVersion(4, 9), 2))
+
 
 class TestEbuild(unittest.TestCase):
     def test_from_full_path(self):

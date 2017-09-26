@@ -54,6 +54,11 @@ class Version(object):
             suffix = '-r' + str(self.revision)
         return str(self.primary) + suffix
 
+    @classmethod
+    def parse(cls, string):
+        """Parse an ebuild |Version| from a string."""
+        return cls.parse_parts(string.split('-'))
+
     @staticmethod
     def parse_revision(string):
         """Parse a revision |string| such as "r300"."""
