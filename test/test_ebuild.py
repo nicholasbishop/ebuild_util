@@ -1,0 +1,110 @@
+# Copyright 2017 Neverware Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# pylint: disable=missing-docstring
+
+import unittest
+
+import mock
+
+from ebuild_util.ebuild import Ebuild, Version, remove_suffix
+from numeric_version import NumericVersion
+
+
+class TestRemoveSuffix(unittest.TestCase):
+    # Note that these test values match the |remove_suffix| docstring."""
+    def test_only_once(self):
+        self.assertEqual(remove_suffix('azaz', 'az'), 'az')
+
+    def test_order(self):
+        self.assertEqual(remove_suffix('az', 'za'), 'az')
+
+
+class TestVersion(unittest.TestCase):
+    def test_str(self):
+        self.assertEqual(str(Version(NumericVersion(1, 2), 3)), '1.2-r3')
+        self.assertEqual(str(Version(NumericVersion(1, 2))), '1.2')
+
+    def test_parse(self):
+        # Note that these values match the examples in the
+        # |Version.parse| docstring.
+        self.assertEqual(Version.parse('9999'),
+                         Version(NumericVersion(9999)))
+        self.assertEqual(Version.parse('1.2.3'),
+                         Version(NumericVersion(1, 2, 3)))
+        self.assertEqual(Version.parse('4.9-r2'),
+                         Version(NumericVersion(4, 9), 2))
+        with self.assertRaises(ValueError):
+            Version.parse('4.9-2')
+
+    def test_parse_revision(self):
+        self.assertEqual(Version.parse_revision('r123'), 123)
+        self.assertIs(Version.parse_revision('123'), None)
+        self.assertIs(Version.parse_revision('r1a'), None)
+
+
+class TestEbuild(unittest.TestCase):
+    def test_from_full_path(self):
+        path = '/foo/bar/mycat/mypkg/mypkg-1.2-r3.ebuild'
+        ebuild = Ebuild.from_path(path)
+        self.assertEqual(ebuild, Ebuild(
+            package='mypkg',
+            version=Version(NumericVersion(1, 2), 3),
+            category='mycat',
+            parent_path='/foo/bar'))
+
+    def test_from_partial_path(self):
+        path = 'mycat/mypkg/mypkg-1.2-r3.ebuild'
+        ebuild = Ebuild.from_path(path)
+        self.assertEqual(ebuild, Ebuild(
+            package='mypkg',
+            version=Version(NumericVersion(1, 2), 3),
+            category='mycat',
+            parent_path=None))
+
+    def test_from_filename(self):
+        path = 'mypkg-1.2-r3.ebuild'
+        ebuild = Ebuild.from_path(path)
+        self.assertEqual(ebuild, Ebuild(
+            package='mypkg',
+            version=Version(NumericVersion(1, 2), 3),
+            category=None,
+            parent_path=None))
+
+    def test_uprev(self):
+        ebuild = Ebuild('mypkg', Version(NumericVersion(1, 2)))
+        self.assertEqual(ebuild.version.revision, 0)
+        ebuild.uprev()
+        self.assertEqual(ebuild.version.revision, 1)
+        ebuild.uprev()
+        self.assertEqual(ebuild.version.revision, 2)
+
+    def test_is_9999(self):
+        ebuild = Ebuild('mypkg', Version(NumericVersion(9999)))
+        self.assertTrue(ebuild.is_9999())
+
+        ebuild = Ebuild('mypkg', Version(NumericVersion(9999), 1))
+        self.assertFalse(ebuild.is_9999())
+
+    @mock.patch('glob.glob', autospec=True)
+    def test_find_in_dir(self, mock_glob):
+        mock_glob.return_value = ('pkg-1.ebuild', 'pkg-9999.ebuild')
+        ebuilds = Ebuild.find_in_directory('some/path')
+        ebuild_versions = [ebuild.version for ebuild in ebuilds]
+        self.assertEqual(ebuild_versions,
+                         [NumericVersion(1), NumericVersion(9999)])
+
+        ebuilds = Ebuild.find_in_directory('some/path', exclude_9999=True)
+        ebuild_versions = [ebuild.version for ebuild in ebuilds]
+        self.assertEqual(ebuild_versions, [NumericVersion(1)])
