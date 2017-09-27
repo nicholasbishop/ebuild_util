@@ -37,8 +37,8 @@ test:
 
 travis:
 	pylint ebuild_util setup.py test && \
-	coverage run --source=minivan,test -m unittest discover && \
-	coverage html
+	coverage run --source=ebuild_util,test -m unittest discover && \
+	coveralls
 
 
 .PHONY: all clean dist lint test
