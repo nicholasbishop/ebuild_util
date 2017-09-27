@@ -35,4 +35,10 @@ test:
 	${VENV}/bin/python -m unittest discover
 
 
+travis:
+	pylint ebuild_util setup.py test && \
+	coverage run --source=minivan,test -m unittest discover && \
+	coverage html
+
+
 .PHONY: all clean dist lint test
